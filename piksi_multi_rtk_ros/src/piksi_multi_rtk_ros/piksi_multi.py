@@ -19,7 +19,7 @@ from sensor_msgs.msg import NavSatFix, NavSatStatus, Imu, MagneticField
 import piksi_rtk_msgs # TODO(rikba): If we dont have this I get NameError: global name 'piksi_rtk_msgs' is not defined.
 from piksi_rtk_msgs.msg import (AgeOfCorrections, BaselineEcef, BaselineHeading, BaselineNed, BasePosEcef, BasePosLlh,
                                 DeviceMonitor_V2_3_15, DopsMulti, ExtEvent, GpsTimeMulti, Heartbeat, ImuRawMulti,
-                                InfoWifiCorrections, Log, MagRaw, MeasurementState_V2_4_1, Observation,
+                                InfoWifiCorrections, Log, MagRaw, MeasurementState_V2_4_1, NavSatFixTime, Observation,
                                 PositionWithCovarianceStamped, PosEcef, PosEcefCov, PosLlhCov, PosLlhMulti,
                                 ReceiverState_V2_4_1, UartState_V2_3_15, UtcTimeMulti,
                                 VelEcef, VelEcefCov, VelNed, VelNedCov, VelocityWithCovarianceStamped)
@@ -358,6 +358,8 @@ class PiksiMulti:
             publishers['baseline_ned_cov_viz'] = rospy.Publisher(rospy.get_name() + '/baseline_ned_cov_viz', Marker, queue_size=10)
 
         publishers['rtk_fix'] = rospy.Publisher(rospy.get_name() + '/navsatfix_rtk_fix',
+                                                NavSatFix, queue_size=10)
+        publishers['rtk_fix_time'] = rospy.Publisher(rospy.get_name() + '/navsatfix_rtk_fix_time',
                                                 NavSatFix, queue_size=10)
         publishers['rtk_float'] = rospy.Publisher(rospy.get_name() + '/navsatfix_rtk_float',
                                                 NavSatFix, queue_size=10)
@@ -789,6 +791,8 @@ class PiksiMulti:
                 self.init_geodetic_reference(msg.lat, msg.lon, msg.height)
 
             self.publish_rtk_fix(msg.lat, msg.lon, msg.height, stamp, self.var_rtk_fix)
+            self.publish_rtk_fix_time(msg.lat,msg.lon, msg.height, stamp, self.var_rtk_fix, msg.tow, msg.wn,
+                                      msg.ns_residual, msg.flags)
         # Dead reckoning
         elif fix_mode == PosLlhMulti.FIX_MODE_DEAD_RECKONING:
             rospy.logwarn(
@@ -1072,6 +1076,26 @@ class PiksiMulti:
                                  self.publishers['enu_pose_fix'], self.publishers['enu_point_fix'],
                                  self.publishers['enu_transform_fix'], self.publishers['best_fix'],
                                  self.publishers['enu_pose_best_fix'])
+
+    def publish_rtk_fix_time(self, latitude, longitude, height, stamp, variance, tow, wn, ns_residual, flags):
+        if self.publishers['rtk_fix_time'].get_num_connections() > 0:
+            navsatfix_msg = NavSatFixTime()
+            navsatfix_msg.header.stamp = stamp
+            navsatfix_msg.header.frame_id = self.navsatfix_frame_id
+            navsatfix_msg.navsat_fix.position_covariance_type = NavSatFix.COVARIANCE_TYPE_APPROXIMATED
+            navsatfix_msg.navsat_fix.status.service = NavSatStatus.SERVICE_GPS
+            navsatfix_msg.navsat_fix.latitude = latitude
+            navsatfix_msg.navsat_fix.longitude = longitude
+            navsatfix_msg.navsat_fix.altitude = height
+            navsatfix_msg.navsat_fix.status.status = navsat_status
+            navsatfix_msg.navsat_fix.position_covariance = [variance[0], 0, 0,
+                                                            0, variance[1], 0,
+                                                            0, 0, variance[2]]
+            navsatfix_msg.gps_time.tow = tow
+            navsatfix_msg.gps_time.wn = wn
+            navsatfix_msg.gps_time.ns_residual = ns_residual
+            navsatfix_msg.gps_time.flags = flags
+            self.publishers['rtk_fix_time'].publish(navsatfix_msg)
 
     def publish_wgs84_point(self, latitude, longitude, height, stamp, variance, navsat_status, pub_navsatfix, pub_pose,
                             pub_point, pub_transform, pub_navsatfix_best_pose, pub_pose_best_fix):

@@ -1,3 +1,3 @@
 Header header
 sensor_msgs/NavSatFix navsat_fix
-piksi_rtk_msgs/GpsTime gps_time
+piksi_rtk_msgs/GpsTimeMulti gps_time
