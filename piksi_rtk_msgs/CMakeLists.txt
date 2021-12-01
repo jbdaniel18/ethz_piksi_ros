@@ -64,6 +64,7 @@ add_message_files(
     VelNedCov.msg
     VelocityWithCovariance.msg
     VelocityWithCovarianceStamped.msg
+    NavSatFixTime.msg
 )
 
 ## Generate services in the 'srv' folder
